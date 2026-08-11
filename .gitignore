@@ -1,0 +1,41 @@
+# Node modules
+node_modules/
+
+# firebase
+serviceAccountKey.json
+
+# Environment variables
+
+serviceAccountKey.json
+.env
+.env.local
+.env.*
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Uploads / files
+uploads/
+
+# Build files
+dist/
+build/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# IDE settings
+.vscode/
+.idea/
+
+# Temporary files
+*.tmp
+*.temp
+
+# Test coverage
+coverage/
