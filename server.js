@@ -9,7 +9,6 @@ const departmentRoutes = require("./routes/departmentRoute");
 const notificationRoutes = require("./routes/notificationRoutes");
 const departmentNotificationRoutes = require("./routes/departmentNotificationRoutes");
 const aiRoutes = require("./routes/aiRoutes");
-const eventRoutes = require("./routes/eventRoutes");
 const eventRoutes = require("./routes/eventRoutes")
 const eventRegistrationRoutes = require("./routes/eventRegistrationRoutes");
 
