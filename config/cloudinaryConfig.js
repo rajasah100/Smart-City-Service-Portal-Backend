@@ -1,7 +1,6 @@
 const cloudinary = require("cloudinary").v2;
 const multer = require("multer");
 const dotenv = require("dotenv");
-const fs = require("fs");
 
 dotenv.config();
 
@@ -13,19 +12,22 @@ cloudinary.config({
 });
 
 // Multer Configuration
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, "uploads/");
-  },
-  filename: (req, file, cb) => {
-    cb(null, `${Date.now()}-${file.originalname}`);
-  },
-});
+// Memory storage: Vercel ko filesystem read-only bhaeko le file disk ma save nagari sidhai Cloudinary ma pathaune
+const storage = multer.memoryStorage();
 
-const upload = multer({ storage });
+const upload = multer({
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+});
 
 // Single Image Upload (Profile Avatar)
 const avatarUpload = upload.single("avatar");
+
+// Home content (janapratinidhi photo, slider, download file)
+const contentUpload = upload.single("file");
+
+// Municipality Logo Upload
+const logoUpload = upload.single("logo");
 
 // Single Event Banner Upload
 const eventUpload = upload.single("image");
@@ -47,20 +49,20 @@ const uploadFileToCloudinary = (file) => {
   }
 
   return new Promise((resolve, reject) => {
-    cloudinary.uploader.upload(
-      file.path,
+    const stream = cloudinary.uploader.upload_stream(
       {
         resource_type: resourceType,
+        filename_override: file.originalname,
         use_filename: true,
       },
       (error, result) => {
-        fs.unlink(file.path, () => {});
-
         if (error) return reject(error);
 
         resolve(result);
       },
     );
+
+    stream.end(file.buffer);
   });
 };
 
@@ -89,4 +91,6 @@ module.exports = {
   uploadMultipleFilesToCloudinary,
   noticeUpload,
   eventUpload,
+  logoUpload,
+  contentUpload,
 };
