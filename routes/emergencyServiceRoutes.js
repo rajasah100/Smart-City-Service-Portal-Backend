@@ -171,7 +171,7 @@ router.put("/:id", protect, role("admin"), async (req, res) => {
     const service = await EmergencyService.findByIdAndUpdate(
       req.params.id,
       buildServiceData(req.body),
-      { new: true, runValidators: true },
+      { returnDocument: "after", runValidators: true },
     );
 
     if (!service) {

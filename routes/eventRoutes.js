@@ -309,7 +309,7 @@ router.put("/:id", protect, role("admin"), eventUpload, async (req, res) => {
       req.params.id,
       req.body,
       {
-        new: true,
+        returnDocument: "after",
         runValidators: true,
       },
     );

@@ -9,6 +9,7 @@ const departmentRoutes = require("./routes/departmentRoute");
 const notificationRoutes = require("./routes/notificationRoutes");
 const departmentNotificationRoutes = require("./routes/departmentNotificationRoutes");
 const aiRoutes = require("./routes/aiRoutes");
+const sitemapRoutes = require("./routes/sitemapRoutes");
 const eventRoutes = require("./routes/eventRoutes")
 const eventRegistrationRoutes = require("./routes/eventRegistrationRoutes");
 const emergencyServiceRoutes = require("./routes/emergencyServiceRoutes");
@@ -59,6 +60,7 @@ app.use("/api/departments", departmentRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/department-notifications", departmentNotificationRoutes);
 app.use("/api/ai", aiRoutes);
+app.use("/api/sitemap.xml", sitemapRoutes);
 app.use("/api/events", eventRoutes);
 app.use("/api/event-registrations", eventRegistrationRoutes);
 app.use("/api/emergency-services", emergencyServiceRoutes);

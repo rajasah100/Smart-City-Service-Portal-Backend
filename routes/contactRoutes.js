@@ -61,7 +61,7 @@ router.put("/:id/read", protect, role("admin"), async (req, res) => {
     const message = await ContactMessage.findByIdAndUpdate(
       req.params.id,
       { isRead: req.body.isRead !== false },
-      { new: true },
+      { returnDocument: "after" },
     );
 
     if (!message) return res.status(404).json({ message: "Message not found" });

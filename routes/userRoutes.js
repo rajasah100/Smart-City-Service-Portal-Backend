@@ -332,7 +332,7 @@ router.put("/fcm-token", protect, async (req, res) => {
         fcmToken,
       },
       {
-        new: true,
+        returnDocument: "after",
       },
     );
 

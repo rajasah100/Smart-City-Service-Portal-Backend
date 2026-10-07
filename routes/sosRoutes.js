@@ -157,7 +157,7 @@ router.put("/:id/location", protect, role("user"), async (req, res) => {
         $set: { location: point },
         $push: { path: { $each: [point], $slice: -MAX_PATH_POINTS } },
       },
-      { new: true, projection: { path: 0 } },
+      { returnDocument: "after", projection: { path: 0 } },
     );
 
     if (!sos) {
@@ -182,7 +182,7 @@ router.put("/:id/cancel", protect, role("user"), async (req, res) => {
         status: { $in: OPEN_STATUSES },
       },
       { $set: { status: "cancelled", closedAt: new Date() } },
-      { new: true, projection: { path: 0 } },
+      { returnDocument: "after", projection: { path: 0 } },
     );
 
     if (!sos) {

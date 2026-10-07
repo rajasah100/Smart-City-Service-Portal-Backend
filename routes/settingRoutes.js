@@ -41,7 +41,7 @@ const getSettings = () =>
   SiteSetting.findOneAndUpdate(
     { key: "main" },
     { $setOnInsert: { key: "main" } },
-    { new: true, upsert: true, setDefaultsOnInsert: true },
+    { returnDocument: "after", upsert: true, setDefaultsOnInsert: true },
   );
 
 // @route GET /api/settings

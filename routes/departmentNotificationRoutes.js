@@ -66,7 +66,7 @@ router.put("/:id/read", departmentProtect, async (req, res) => {
     const notification = await DepartmentNotification.findOneAndUpdate(
       { _id: req.params.id, department: req.department._id },
       { isRead: true },
-      { new: true },
+      { returnDocument: "after" },
     );
 
     if (!notification) {
