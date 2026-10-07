@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const express = require("express");
 const Notice = require("../models/Notice");
 const { departmentProtect } = require("../middleware/departmentAuth");
@@ -16,7 +17,7 @@ const router = express.Router();
 // @access Private/Department
 router.post("/", departmentProtect, noticeUpload, async (req, res) => {
   try {
-    const { title, description, municipality, ward, priority } = req.body;
+    const { title, description, municipality, ward, priority, category } = req.body;
 
     if (!title || !description) {
       return res.status(400).json({
@@ -44,6 +45,7 @@ router.post("/", departmentProtect, noticeUpload, async (req, res) => {
       ward,
       municipality,
       priority,
+      category,
       attachment: attachments,
 
       // Automatically set from logged-in department
@@ -82,6 +84,7 @@ router.put("/:id", departmentProtect, noticeUpload, async (req, res) => {
       attachment,
       priority,
       status,
+      category,
     } = req.body;
 
     // Find notice by ID
@@ -122,6 +125,8 @@ router.put("/:id", departmentProtect, noticeUpload, async (req, res) => {
     notice.municipality = municipality || notice.municipality;
 
     notice.priority = priority || notice.priority;
+
+    notice.category = category || notice.category;
 
     notice.status = status || notice.status;
 
@@ -171,7 +176,7 @@ router.delete("/:id", departmentProtect, async (req, res) => {
 // @access Public
 router.get("/", async (req, res) => {
   try {
-    const { municipality, department, priority, search } = req.query;
+    const { municipality, department, priority, search, category, limit } = req.query;
 
     let query = {};
 
@@ -180,9 +185,11 @@ router.get("/", async (req, res) => {
       query.municipality = municipality;
     }
 
-    // Department
+    // Department (ID wa naam dubai chalcha; notice page le ID pathaucha)
     if (department) {
-      const dept = await Department.findOne({ name: department });
+      const dept = mongoose.isValidObjectId(department)
+        ? await Department.findById(department)
+        : await Department.findOne({ name: department });
 
       if (dept) {
         query.department = dept._id;
@@ -194,6 +201,13 @@ router.get("/", async (req, res) => {
     // Priority
     if (priority) {
       query.priority = priority;
+    }
+
+    // Category (purano notice ma category nabhae "notice" manne)
+    if (category === "notice") {
+      query.category = { $in: ["notice", null] };
+    } else if (category) {
+      query.category = category;
     }
 
     const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -221,7 +235,8 @@ router.get("/", async (req, res) => {
     const notices = await Notice.find(query)
       .populate("department", "name")
       .populate("createdBy")
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .limit(Math.min(Number(limit) || 0, 100));
 
     res.json(notices);
   } catch (error) {
@@ -295,9 +310,15 @@ router.get("/all", protect, role("admin"), async (req, res) => {
 // @access Public
 router.get("/:id", async (req, res) => {
   try {
+    // Galat ID ma 500 haina, 404 pathaune
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(404).json({ message: "Notice Not Found" });
+    }
+
+    // Public page ma chahine department ko jankari matra
     const notice = await Notice.findById(req.params.id)
-      .populate("department")
-      .populate("createdBy");
+      .populate("department", "name phone email address")
+      .populate("createdBy", "name");
     if (notice) {
       res.json(notice);
     } else {

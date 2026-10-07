@@ -44,6 +44,13 @@ const noticeSchema = new mongoose.Schema(
       default: "medium",
     },
 
+    // सूचना / बोलपत्र / समाचार / प्रेस विज्ञप्ति
+    category: {
+      type: String,
+      enum: ["notice", "tender", "news", "press"],
+      default: "notice",
+    },
+
     status: {
       type: String,
       enum: ["active", "archived"],

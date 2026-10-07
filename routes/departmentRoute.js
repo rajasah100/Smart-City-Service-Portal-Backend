@@ -5,6 +5,7 @@ const { protect } = require("../middleware/authMiddleware");
 const dotenv = require("dotenv");
 const role = require("../middleware/roleMiddleware");
 const { departmentProtect } = require("../middleware/departmentAuth");
+const { cleanServiceArea, coversLocation } = require("../utils/serviceArea");
 
 dotenv.config();
 
@@ -15,7 +16,7 @@ const router = express.Router();
 // @access Private/Admin
 router.post("/register", protect, role("admin"), async (req, res) => {
   try {
-    const { name, email, password, phone, address, description } = req.body;
+    const { name, email, password, phone, address, description, serviceArea } = req.body;
 
     const existDepartment = await Department.findOne({ email });
 
@@ -32,6 +33,7 @@ router.post("/register", protect, role("admin"), async (req, res) => {
       phone,
       address,
       description,
+      serviceArea: cleanServiceArea(serviceArea),
       admin: req.user._id,
     });
 
@@ -48,6 +50,7 @@ router.post("/register", protect, role("admin"), async (req, res) => {
         address: department.address,
         description: department.description,
         isActive: department.isActive,
+        serviceArea: department.serviceArea,
       },
     });
   } catch (error) {
@@ -124,6 +127,10 @@ router.put("/:id", protect, role("admin"), async (req, res) => {
     department.address = req.body.address || department.address;
     department.description = req.body.description || department.description;
 
+    if (req.body.serviceArea) {
+      department.serviceArea = cleanServiceArea(req.body.serviceArea);
+    }
+
     if (req.body.password) {
       department.password = req.body.password;
     }
@@ -141,6 +148,7 @@ router.put("/:id", protect, role("admin"), async (req, res) => {
         address: department.address,
         isActive: department.isActive,
         description: department.description,
+        serviceArea: department.serviceArea,
       },
     });
   } catch (err) {
@@ -158,12 +166,19 @@ router.get("/profile", departmentProtect, async (req, res) => {
 });
 
 // @route GET /api/departments
-// @desc Get all departments
+// @desc Get all departments (?province=&district=&municipality= dida tyo thau herne matra)
 // @access Public
 
 router.get("/", async (req, res) => {
   try {
-    const departments = await Department.find().select("-password");
+    let departments = await Department.find().select("-password");
+    const { province, district, municipality } = req.query;
+
+    if (province) {
+      departments = departments.filter((department) =>
+        coversLocation(department.serviceArea, { province, district, municipality }),
+      );
+    }
 
     res.status(200).json({
       success: true,
@@ -177,12 +192,47 @@ router.get("/", async (req, res) => {
   }
 });
 
+// @route POST /api/departments/fcm-token
+// @desc Save push notification token for this device (SOS alert ko lagi)
+// @access Private/Department
+router.post("/fcm-token", departmentProtect, async (req, res) => {
+  try {
+    const { fcmToken } = req.body;
+
+    if (!fcmToken) {
+      return res.status(400).json({ message: "FCM Token is required" });
+    }
+
+    // Naya token thapne, ani 10 ota bhanda badhi device bhaye purano hataune
+    await Department.updateOne(
+      { _id: req.department._id },
+      { $pull: { fcmTokens: fcmToken } },
+    );
+    await Department.updateOne(
+      { _id: req.department._id },
+      { $push: { fcmTokens: { $each: [fcmToken], $slice: -10 } } },
+    );
+
+    res.status(200).json({ success: true, message: "FCM Token saved." });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 // @route POST /api/departments/logout
 // @desc Department Logout
 // @access Private
 
 router.post("/logout", departmentProtect, async (req, res) => {
   try {
+    // Logout bhaeko device ma SOS notification napathaune
+    if (req.body?.fcmToken) {
+      await Department.updateOne(
+        { _id: req.department._id },
+        { $pull: { fcmTokens: req.body.fcmToken } },
+      );
+    }
+
     res.status(200).json({
       success: true,
       message: "Department logout successful",

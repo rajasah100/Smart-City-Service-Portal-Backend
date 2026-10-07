@@ -34,4 +34,21 @@ const protect = async (req, res, next) => {
 //   }
 // }
 
-module.exports = { protect };
+// Login bhae req.user rakhne, nabhae pani agadi badhne (guest le pani chalauna milne route)
+const optionalAuth = async (req, res, next) => {
+  const header = req.headers.authorization;
+
+  if (header?.startsWith("Bearer ")) {
+    try {
+      const decoded = jwt.verify(header.split(" ")[1], process.env.JWT_SECRET);
+      req.user = await User.findById(decoded.user.id).select("-password");
+    } catch {
+      // Token bigreko/sakieko: guest jastai
+      req.user = null;
+    }
+  }
+
+  next();
+};
+
+module.exports = { protect, optionalAuth };

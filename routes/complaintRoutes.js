@@ -1,9 +1,11 @@
 const express = require("express");
+const mongoose = require("mongoose");
 const Complaint = require("../models/Complaint");
 const role = require("../middleware/roleMiddleware");
 const { protect } = require("../middleware/authMiddleware");
 const generateComplaintId = require("../utils/generateComplaintId");
 const {
+  cloudinary,
   uploadMultipleFilesToCloudinary,
   multerMiddleware,
 } = require("../config/cloudinaryConfig");
@@ -11,10 +13,9 @@ const { departmentProtect } = require("../middleware/departmentAuth");
 const { sendPushNotification } = require("../services/notificationService");
 const User = require("../models/User");
 const Notification = require("../models/Notification");
-const {
-  MAX_ACCESS_BOUNDARY_RULES_COUNT,
-} = require("google-auth-library/build/src/auth/downscopedclient");
 const DepartmentNotification = require("../models/departmentNotification");
+const Department = require("../models/Department");
+const { coversLocation } = require("../utils/serviceArea");
 
 const router = express.Router();
 
@@ -42,6 +43,19 @@ router.post("/", protect, role("user"), multerMiddleware, async (req, res) => {
       return res.status(400).json({
         message: "Title, Description and Department are required",
       });
+    }
+
+    // Gunaso tyo thau herne department ma matra jana paos
+    const selectedDepartment = mongoose.isValidObjectId(department)
+      ? await Department.findById(department).select("isActive serviceArea")
+      : null;
+
+    if (!selectedDepartment || selectedDepartment.isActive === false) {
+      return res.status(400).json({ message: "Selected department is not available" });
+    }
+
+    if (!coversLocation(selectedDepartment.serviceArea, { province, district, municipality })) {
+      return res.status(400).json({ message: "This department does not serve the selected location" });
     }
 
     let uploadedImages = [];
@@ -175,6 +189,14 @@ router.put("/:id/status", departmentProtect, async (req, res) => {
   try {
     const { status, resolutionNote } = req.body;
 
+    if (!["pending", "assigned", "in-progress", "resolved", "rejected"].includes(status)) {
+      return res.status(400).json({ message: "Invalid status" });
+    }
+
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(404).json({ message: "Complaint not found" });
+    }
+
     const complaint = await Complaint.findById(req.params.id);
 
     if (!complaint) {
@@ -279,7 +301,7 @@ router.put("/:id/status", departmentProtect, async (req, res) => {
     }
 
     const updatedComplaint = await Complaint.findById(complaint._id)
-      .populate("user", "name email phone")
+      .populate("user", "name email phone avatar")
       .populate("department", "name email phone address");
 
     res.status(200).json({
@@ -319,6 +341,42 @@ router.get("/track/:complaintId", protect, role("user"), async (req, res) => {
     res.status(200).json({
       success: true,
       complaint,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
+// @route DELETE /api/complaints/:id
+// @desc Delete a complaint (and its images on Cloudinary)
+// @access Private/Admin
+router.delete("/:id", protect, role("admin"), async (req, res) => {
+  try {
+    const complaint = await Complaint.findById(req.params.id);
+
+    if (!complaint) {
+      return res.status(404).json({
+        success: false,
+        message: "Complaint not found",
+      });
+    }
+
+    for (const image of complaint.images || []) {
+      if (image.publicId) {
+        await cloudinary.uploader.destroy(image.publicId).catch(() => {});
+      }
+    }
+
+    await complaint.deleteOne();
+
+    res.status(200).json({
+      success: true,
+      message: "Complaint deleted successfully",
+      id: req.params.id,
     });
   } catch (error) {
     console.error(error);

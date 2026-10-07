@@ -41,9 +41,24 @@ const departmentSchema = new mongoose.Schema(
       default: "",
     },
 
+    // Kun thau ko gunaso herne. Khali province = pura Nepal, khali district = pura pradesh,
+    // khali municipalities = pura jilla. Purana department (yo field nabhaeko) Bhaktapur jilla
+    serviceArea: {
+      province: { type: String, default: "Bagmati Province", trim: true },
+      district: { type: String, default: "Bhaktapur", trim: true },
+      municipalities: { type: [String], default: [] },
+    },
+
     admin: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
+    },
+
+    // Push notification token (dherai device/browser bata login huna sakcha)
+    fcmTokens: {
+      type: [String],
+      default: [],
+      select: false,
     },
   },
   { timestamps: true },

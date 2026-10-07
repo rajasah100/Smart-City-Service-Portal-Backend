@@ -1,4 +1,5 @@
 const express = require("express");
+const mongoose = require("mongoose");
 const { departmentProtect } = require("../middleware/departmentAuth");
 const Department = require("../models/Department");
 const DepartmentNotification = require("../models/departmentNotification");
@@ -52,6 +53,29 @@ router.put("/read-all", departmentProtect, async (req, res) => {
       success: false,
       message: error.message,
     });
+  }
+});
+
+// Ek notification padhieko banaune (aphno department ko matra)
+router.put("/:id/read", departmentProtect, async (req, res) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(404).json({ success: false, message: "Notification not found" });
+    }
+
+    const notification = await DepartmentNotification.findOneAndUpdate(
+      { _id: req.params.id, department: req.department._id },
+      { isRead: true },
+      { new: true },
+    );
+
+    if (!notification) {
+      return res.status(404).json({ success: false, message: "Notification not found" });
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 

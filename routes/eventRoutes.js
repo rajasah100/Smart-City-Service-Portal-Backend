@@ -1,5 +1,7 @@
 const express = require("express");
+const mongoose = require("mongoose");
 const Event = require("../models/Event");
+const EventRegistration = require("../models/EventRegistration");
 const { protect } = require("../middleware/authMiddleware");
 const role = require("../middleware/roleMiddleware");
 const {
@@ -74,6 +76,13 @@ router.post("/", protect, role("admin"), eventUpload, async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "Please fill all required fields.",
+      });
+    }
+
+    if (new Date(endDate) < new Date(startDate)) {
+      return res.status(400).json({
+        success: false,
+        message: "End date cannot be before start date.",
       });
     }
 
@@ -171,6 +180,11 @@ router.get("/", async (req, res) => {
 // @access Public
 router.get("/:id", async (req, res) => {
   try {
+    // Galat ID ma 500 haina, 404 pathaune
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(404).json({ success: false, message: "Event not found." });
+    }
+
     const event = await Event.findById(req.params.id).populate(
       "createdBy",
       "name email",
@@ -236,6 +250,16 @@ router.put("/:id", protect, role("admin"), eventUpload, async (req, res) => {
       });
     }
 
+    const newStart = new Date(req.body.startDate || event.startDate);
+    const newEnd = new Date(req.body.endDate || event.endDate);
+
+    if (newEnd < newStart) {
+      return res.status(400).json({
+        success: false,
+        message: "End date cannot be before start date.",
+      });
+    }
+
     // Upload new image if provided
     if (req.file) {
       // Delete old image from Cloudinary
@@ -253,22 +277,33 @@ router.put("/:id", protect, role("admin"), eventUpload, async (req, res) => {
       };
     }
 
-    req.body.isRegistrationRequired =
-      req.body.isRegistrationRequired === "true";
+    // FormData bata "true"/"false" string, JSON bata boolean aauna sakcha.
+    // Pathaeko field matra update garne (cancel garda aru data nametiyos)
+    ["isRegistrationRequired", "isFeatured", "isCancelled"].forEach((field) => {
+      if (req.body[field] !== undefined) {
+        req.body[field] = String(req.body[field]) === "true";
+      }
+    });
 
-    req.body.isFeatured = req.body.isFeatured === "true";
+    // Update location (form bata location aayo bhane matra)
+    const locationFields = [
+      "province",
+      "district",
+      "municipality",
+      "ward",
+      "tole",
+      "venue",
+    ];
 
-    req.body.isCancelled = req.body.isCancelled === "true";
+    if (locationFields.some((field) => req.body[field] !== undefined)) {
+      req.body.location = { ...event.location?.toObject?.() };
 
-    // Update location
-    req.body.location = {
-      province: req.body.province,
-      district: req.body.district,
-      municipality: req.body.municipality,
-      ward: req.body.ward,
-      tole: req.body.tole,
-      venue: req.body.venue,
-    };
+      locationFields.forEach((field) => {
+        if (req.body[field] !== undefined) {
+          req.body.location[field] = req.body[field];
+        }
+      });
+    }
 
     const updatedEvent = await Event.findByIdAndUpdate(
       req.params.id,
